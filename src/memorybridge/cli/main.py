@@ -9,12 +9,16 @@ from typing import Optional
 
 from ..storage.sqlite import SQLiteStorage
 from ..core.memory import MemoryType, MemoryPriority
+from . import graph_cmds
 
 app = typer.Typer(
     name="memorybridge",
     help="MemoryBridge - 跨 Agent 记忆共享平台",
     add_completion=True,
 )
+
+# 注册知识图谱子命令
+app.add_typer(graph_cmds.graph_app, name="graph")
 
 # 全局存储实例
 _storage: Optional[SQLiteStorage] = None
