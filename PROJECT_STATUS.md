@@ -1,8 +1,8 @@
 # MemoryBridge 项目状态
 
 **最后更新**: 2026-03-22  
-**版本**: v0.2.0  
-**状态**: Phase 2 完成 ✅
+**版本**: v0.3.0-dev  
+**状态**: Phase 3 开发中 🚀
 
 ---
 
@@ -27,13 +27,17 @@
 - [x] CLI 图谱命令（7 个）
 - [x] 多跳推理支持
 
-### Phase 3: 多存储后端 ⏳ 待开始
+### Phase 3: 多存储后端 🚀 进行中
 
-- [ ] MongoDB 存储
-- [ ] OSS 备份
-- [ ] 数据分层
+- [x] MongoDB 存储后端 ✅
+- [x] 存储工厂模式 ✅
+- [x] 环境变量配置 ✅
+- [x] MongoDB 单元测试 ✅
+- [ ] MongoDB 性能优化
+- [ ] OSS 备份支持
+- [ ] 数据分层（热/冷数据）
 
-### Phase 4: Agent 集成 ⏳ 进行中
+### Phase 4: Agent 集成 ⏳ 待开始
 
 - [x] OpenClaw Skill ✅ (已完成)
 - [ ] Claude Code 集成
@@ -51,7 +55,9 @@ MemoryBridge/
 │   │   ├── memory.py          # Memory 数据模型
 │   │   └── service.py         # MemoryService 接口
 │   ├── storage/               # 存储后端
-│   │   └── sqlite.py          # SQLite 实现
+│   │   ├── sqlite.py          # SQLite 实现 ✅
+│   │   ├── mongodb.py         # MongoDB 实现 ✅ NEW!
+│   │   └── factory.py         # 存储工厂 ✅ NEW!
 │   ├── graph/                 # 知识图谱
 │   │   └── networkx_graph.py  # NetworkX 实现
 │   ├── cli/                   # CLI 工具
@@ -66,12 +72,15 @@ MemoryBridge/
 │   ├── test_memory.py
 │   ├── test_sqlite.py
 │   ├── test_graph.py
+│   ├── test_mongodb.py        # MongoDB 测试 ✅ NEW!
+│   ├── test_factory.py        # 工厂测试 ✅ NEW!
 │   └── test_skill_tools.py
 ├── docs/                      # 文档
 │   ├── quickstart.md
 │   ├── skill-integration.md
 │   ├── skill-setup.md
-│   └── SKILL-INSTALL.md
+│   ├── SKILL-INSTALL.md
+│   └── mongodb-setup.md       # MongoDB 配置 ✅ NEW!
 ├── install-skill.sh           # 一键安装脚本
 ├── pyproject.toml             # 项目配置
 ├── README.md                  # 项目说明
@@ -90,7 +99,7 @@ bash install-skill.sh
 openclaw gateway restart
 ```
 
-### 使用 CLI
+### 使用 CLI (SQLite)
 
 ```bash
 cd /Users/shmily/workspace/MemoryBridge
@@ -108,11 +117,28 @@ memorybridge graph add-relation <id1> uses <id2>
 memorybridge graph stats
 ```
 
+### 使用 MongoDB
+
+```bash
+# 安装 MongoDB 支持
+pip install pymongo
+
+# 设置环境变量
+export MEMORYBRIDGE_BACKEND=mongodb
+export MEMORYBRIDGE_MONGO_URI="mongodb://localhost:27017"
+
+# 使用 CLI
+memorybridge add "Test memory" --type long_term
+```
+
 ### 运行测试
 
 ```bash
 cd /Users/shmily/workspace/MemoryBridge
 python3 -m pytest tests/ -v
+
+# 测试覆盖率
+python3 -m pytest tests/ -v --cov=src/memorybridge --cov-report=html
 ```
 
 ---
@@ -121,25 +147,43 @@ python3 -m pytest tests/ -v
 
 | 指标 | 数量 |
 |------|------|
-| Python 文件 | 15+ |
-| 测试用例 | 37 ✅ |
-| 测试覆盖率 | 54% |
-| 文档文件 | 8 |
+| Python 文件 | 18+ |
+| 测试用例 | 49 ✅ |
+| 测试覆盖率 | 51% |
+| 文档文件 | 9 |
 | CLI 命令 | 17 (10 + 7 graph) |
 | Skill 工具 | 9 |
-| 代码行数 | ~2500 |
+| 存储后端 | 2 (SQLite, MongoDB) |
+| 代码行数 | ~3200 |
 
 ---
 
 ## 🎯 下一步
 
-1. **立即**: 提交 Phase 2 到 git
-2. **本周**: 开始 Phase 3（MongoDB + OSS）
-3. **本月**: 完成 Phase 4（更多 Agent 集成）
+1. **立即**: 
+   - [ ] 提交 Phase 3 到 git
+   - [ ] 更新 README.md
+
+2. **本周**: 
+   - [ ] 完成 OSS 备份支持
+   - [ ] 添加 MongoDB 性能基准测试
+
+3. **本月**: 
+   - [ ] 完成 Phase 4（更多 Agent 集成）
+   - [ ] 发布 v0.3.0
 
 ---
 
 ## 📝 变更日志
+
+### v0.3.0-dev (2026-03-22) - Phase 3 开发中
+
+- ✅ 新增 MongoDB 存储后端
+- ✅ 新增存储工厂模式
+- ✅ 新增环境变量配置支持
+- ✅ 新增 12 个 MongoDB/工厂测试
+- ✅ 新增 MongoDB 配置文档
+- ✅ 测试总数：37 → 49
 
 ### v0.2.0 (2026-03-22) - Phase 2 完成
 
