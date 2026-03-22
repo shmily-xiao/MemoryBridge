@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "memorybridge"
-version = "0.3.0"
+version = "0.4.0-dev"
 description = "跨 Agent 记忆共享平台 - Memory as a Service"
 readme = "README.md"
 license = "MIT"
@@ -51,8 +51,18 @@ mongodb = [
 oss = [
     "oss2>=2.18.0",
 ]
+langchain = [
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+]
+crewai = [
+    "crewai>=0.28.0",
+]
+integrations = [
+    "memorybridge[langchain,crewai]",
+]
 all = [
-    "memorybridge[mongodb,oss]",
+    "memorybridge[mongodb,oss,integrations]",
 ]
 
 [project.scripts]
