@@ -2,12 +2,14 @@
 CLI 主入口
 
 使用 Typer 框架提供命令行界面
+支持多存储后端配置
 """
 
 import typer
 from typing import Optional
+import json
 
-from ..storage.sqlite import SQLiteStorage
+from ..storage.factory import create_storage, create_storage_from_env
 from ..core.memory import MemoryType, MemoryPriority
 from . import graph_cmds
 
@@ -20,16 +22,16 @@ app = typer.Typer(
 # 注册知识图谱子命令
 app.add_typer(graph_cmds.graph_app, name="graph")
 
-# 全局存储实例
-_storage: Optional[SQLiteStorage] = None
+# 全局配置
+_global_backend: Optional[str] = None
+_global_config: Optional[dict] = None
 
 
-def get_storage() -> SQLiteStorage:
-    """获取存储实例 (懒加载)"""
-    global _storage
-    if _storage is None:
-        _storage = SQLiteStorage()
-    return _storage
+def get_storage(backend: Optional[str] = None, config: Optional[dict] = None):
+    """获取存储实例（支持多后端）"""
+    if backend:
+        return create_storage(backend, config or {})
+    return create_storage_from_env()
 
 
 @app.command()
@@ -38,10 +40,9 @@ def add(
     type: str = typer.Option("long_term", "--type", "-t", help="记忆类型：session/long_term"),
     priority: str = typer.Option("p1", "--priority", "-p", help="优先级：p0/p1/p2/p3"),
     tags: Optional[str] = typer.Option(None, "--tags", help="标签，逗号分隔"),
+    backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端：sqlite/mongodb/tiered"),
 ):
     """添加一条新记忆"""
-    storage = get_storage()
-
     # 参数验证
     try:
         memory_type = MemoryType(type)
@@ -58,6 +59,8 @@ def add(
         raise typer.Exit(1)
 
     tag_list = [t.strip() for t in tags.replace("，", ",").split(",") if t.strip()] if tags else []
+
+    storage = get_storage(backend)
 
     import asyncio
 
@@ -84,14 +87,15 @@ def search(
     query: str = typer.Argument(..., help="搜索关键词"),
     limit: int = typer.Option(10, "--limit", "-l", help="返回数量"),
     type: Optional[str] = typer.Option(None, "--type", "-t", help="记忆类型过滤"),
+    backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端"),
 ):
     """搜索记忆"""
-    storage = get_storage()
+    storage = get_storage(backend)
 
     filters = {}
     if type:
         try:
-            filters["memory_type"] = MemoryType(type).value
+            filters["memory_type"] = type
         except ValueError:
             typer.echo(f"❌ 错误：无效的记忆类型 '{type}'")
             raise typer.Exit(1)
@@ -119,9 +123,10 @@ def search(
 def list_(
     limit: int = typer.Option(20, "--limit", "-l", help="返回数量"),
     type: Optional[str] = typer.Option(None, "--type", "-t", help="记忆类型过滤"),
+    backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端"),
 ):
     """列出记忆"""
-    storage = get_storage()
+    storage = get_storage(backend)
 
     memory_type = None
     if type:
@@ -149,9 +154,9 @@ def list_(
 
 
 @app.command()
-def get(memory_id: str = typer.Argument(..., help="记忆 ID")):
+def get(memory_id: str = typer.Argument(..., help="记忆 ID"), backend: str = typer.Option("sqlite", "--backend", "-b")):
     """查看单条记忆详情"""
-    storage = get_storage()
+    storage = get_storage(backend)
 
     import asyncio
 
@@ -180,9 +185,10 @@ def update(
     memory_id: str = typer.Argument(..., help="记忆 ID"),
     content: Optional[str] = typer.Option(None, "--content", "-c", help="新内容"),
     tags: Optional[str] = typer.Option(None, "--tags", help="新标签，逗号分隔"),
+    backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端"),
 ):
     """更新记忆"""
-    storage = get_storage()
+    storage = get_storage(backend)
 
     if not content and not tags:
         typer.echo("❌ 错误：至少需要提供一个更新字段 (--content 或 --tags)")
@@ -212,9 +218,9 @@ def update(
 
 
 @app.command()
-def delete(memory_id: str = typer.Argument(..., help="记忆 ID")):
+def delete(memory_id: str = typer.Argument(..., help="记忆 ID"), backend: str = typer.Option("sqlite", "--backend", "-b")):
     """删除记忆"""
-    storage = get_storage()
+    storage = get_storage(backend)
 
     import asyncio
 
@@ -231,9 +237,10 @@ def delete(memory_id: str = typer.Argument(..., help="记忆 ID")):
 def export(
     output: str = typer.Option("memories.json", "--output", "-o", help="输出文件路径"),
     format: str = typer.Option("json", "--format", "-f", help="导出格式"),
+    backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端"),
 ):
     """导出记忆到文件"""
-    storage = get_storage()
+    storage = get_storage(backend)
 
     import asyncio
 
@@ -249,9 +256,10 @@ def export(
 def import_(
     input: str = typer.Option(..., "--input", "-i", help="输入文件路径"),
     format: str = typer.Option("json", "--format", "-f", help="导入格式"),
+    backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端"),
 ):
     """从文件导入记忆"""
-    storage = get_storage()
+    storage = get_storage(backend)
 
     with open(input, "r", encoding="utf-8") as f:
         data = f.read()
@@ -264,9 +272,9 @@ def import_(
 
 
 @app.command()
-def status():
+def status(backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端")):
     """查看系统状态"""
-    storage = get_storage()
+    storage = get_storage(backend)
 
     import asyncio
 
@@ -278,7 +286,8 @@ def status():
     typer.echo(f"总记忆数：{total}")
     typer.echo(f"  - Session 记忆：{session_count}")
     typer.echo(f"  - 长期记忆：{long_term_count}")
-    typer.echo(f"存储路径：{storage.db_path}")
+    typer.echo(f"存储后端：{backend}")
+    typer.echo(f"存储路径：{getattr(storage, 'db_path', 'N/A')}")
 
 
 @app.command()
@@ -287,6 +296,104 @@ def version():
     from .. import __version__
 
     typer.echo(f"MemoryBridge v{__version__}")
+
+
+@app.command()
+def config(
+    show: bool = typer.Option(False, "--show", "-s", help="显示当前配置"),
+    backend: Optional[str] = typer.Option(None, "--backend", "-b", help="设置默认后端"),
+    mongo_uri: Optional[str] = typer.Option(None, "--mongo-uri", help="MongoDB 连接字符串"),
+    mongo_db: Optional[str] = typer.Option(None, "--mongo-db", help="MongoDB 数据库名"),
+):
+    """管理配置"""
+    config_file = typer.get_app_dir("memorybridge") / "config.json"
+    from pathlib import Path
+    config_file = Path(config_file)
+
+    if show:
+        if config_file.exists():
+            with open(config_file, "r") as f:
+                config = json.load(f)
+            typer.echo(json.dumps(config, indent=2, ensure_ascii=False))
+        else:
+            typer.echo("❌ 配置文件不存在")
+        return
+
+    # 更新配置
+    config = {}
+    if config_file.exists():
+        with open(config_file, "r") as f:
+            config = json.load(f)
+
+    if backend:
+        config["backend"] = backend
+    if mongo_uri:
+        config["mongo_uri"] = mongo_uri
+    if mongo_db:
+        config["mongo_db"] = mongo_db
+
+    # 保存配置
+    config_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(config_file, "w") as f:
+        json.dump(config, f, indent=2)
+
+    typer.echo("✅ 配置已更新")
+    typer.echo(f"配置文件：{config_file}")
+
+
+@app.command()
+def backup(
+    action: str = typer.Argument("list", help="操作：list/backup/restore"),
+    target: Optional[str] = typer.Option(None, "--target", "-t", help="备份文件路径或 OSS key"),
+    oss_key_id: Optional[str] = typer.Option(None, "--oss-key-id", envvar="OSS_ACCESS_KEY_ID"),
+    oss_key_secret: Optional[str] = typer.Option(None, "--oss-key-secret", envvar="OSS_ACCESS_KEY_SECRET"),
+    oss_bucket: Optional[str] = typer.Option(None, "--oss-bucket", envvar="OSS_BUCKET_NAME"),
+):
+    """备份管理（支持本地和 OSS）"""
+    import asyncio
+
+    if action == "list":
+        # 列出本地备份
+        from pathlib import Path
+        backup_dir = Path.home() / ".memorybridge" / "backups"
+        
+        if not backup_dir.exists():
+            typer.echo("❌ 暂无备份")
+            return
+        
+        backups = list(backup_dir.glob("*.json"))
+        if not backups:
+            typer.echo("❌ 暂无备份")
+            return
+        
+        typer.echo("📊 本地备份:\n")
+        for backup in sorted(backups, reverse=True):
+            stat = backup.stat()
+            typer.echo(f"  {backup.name} ({stat.st_size} bytes, {backup.stat().st_mtime})")
+    
+    elif action == "backup":
+        # 导出当前数据作为备份
+        storage = get_storage()
+        output = target or f"backup_{__import__('datetime').datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        data = asyncio.run(storage.export(format="json"))
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(data)
+        
+        typer.echo(f"✅ 备份已创建：{output}")
+    
+    elif action == "restore":
+        if not target:
+            typer.echo("❌ 错误：restore 需要指定 --target 文件路径")
+            raise typer.Exit(1)
+        
+        storage = get_storage()
+        count = asyncio.run(storage.import_memories(open(target).read(), format="json"))
+        typer.echo(f"✅ 恢复成功：{count} 条记忆")
+    
+    else:
+        typer.echo(f"❌ 未知操作：{action}")
+        raise typer.Exit(1)
 
 
 def main():
