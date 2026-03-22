@@ -7,7 +7,7 @@ MemoryBridge OpenClaw Skill 集成
 import sys
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union, List
 
 # 动态导入 MemoryBridge
 from memorybridge.storage.sqlite import SQLiteStorage
@@ -28,11 +28,29 @@ def get_storage(db_path: Optional[str] = None) -> SQLiteStorage:
     return SQLiteStorage()
 
 
+def _parse_tags(tags) -> List[str]:
+    """解析标签，支持字符串或列表
+    
+    Args:
+        tags: 标签，可以是逗号分隔的字符串或列表
+    
+    Returns:
+        标签列表
+    """
+    if tags is None:
+        return []
+    elif isinstance(tags, list):
+        return tags
+    else:
+        # 支持中英文逗号
+        return [t.strip() for t in tags.replace("，", ",").split(",") if t.strip()]
+
+
 def memory_add(
     content: str,
     type: str = "long_term",
     priority: str = "p1",
-    tags: Optional[str] = None,
+    tags = None,
     db_path: Optional[str] = None
 ) -> dict:
     """添加记忆
@@ -41,7 +59,7 @@ def memory_add(
         content: 记忆内容（必填）
         type: 记忆类型 session/long_term（默认 long_term）
         priority: 优先级 p0/p1/p2/p3（默认 p1）
-        tags: 标签，逗号分隔（可选）
+        tags: 标签，逗号分隔或列表（可选）
         db_path: 数据库路径（可选）
     
     Returns:
@@ -66,7 +84,7 @@ def memory_add(
     # 转换枚举
     memory_type = MemoryType(type)
     mem_priority = MemoryPriority(priority)
-    tag_list = tags.split(",") if tags else []
+    tag_list = _parse_tags(tags)
     
     # 添加记忆
     memory = asyncio.run(
@@ -198,7 +216,7 @@ def memory_get(memory_id: str, db_path: Optional[str] = None) -> dict:
 def memory_update(
     memory_id: str,
     content: Optional[str] = None,
-    tags: Optional[str] = None,
+    tags = None,
     db_path: Optional[str] = None
 ) -> dict:
     """更新记忆
@@ -206,7 +224,7 @@ def memory_update(
     Args:
         memory_id: 记忆 ID（必填）
         content: 新内容（可选）
-        tags: 新标签，逗号分隔（可选）
+        tags: 新标签，逗号分隔或列表（可选）
         db_path: 数据库路径（可选）
     
     Returns:
@@ -219,7 +237,7 @@ def memory_update(
     import asyncio
     
     storage = get_storage(db_path)
-    tag_list = tags.split(",") if tags else None
+    tag_list = _parse_tags(tags) if tags else None
     
     try:
         memory = asyncio.run(

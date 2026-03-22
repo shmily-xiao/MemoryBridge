@@ -6,7 +6,7 @@ NetworkX 知识图谱实现
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import networkx as nx
@@ -107,7 +107,7 @@ class NetworkXGraph:
                 VALUES (?, ?, ?, ?, ?)
                 """,
                 (entity_id, name, entity_type, json.dumps(properties), 
-                 self.graph.nodes[entity_id].get("created_at", datetime.utcnow().isoformat()))
+                 self.graph.nodes[entity_id].get("created_at", datetime.now(timezone.utc).isoformat()))
             )
             conn.commit()
     
@@ -121,7 +121,7 @@ class NetworkXGraph:
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (relation_id, from_id, to_id, relation_type, json.dumps(properties),
-                 self.graph[from_id][to_id].get("created_at", datetime.utcnow().isoformat()))
+                 self.graph[from_id][to_id].get("created_at", datetime.now(timezone.utc).isoformat()))
             )
             conn.commit()
     
@@ -144,7 +144,7 @@ class NetworkXGraph:
             name=name,
             entity_type=entity_type,
             properties=properties or {},
-            created_at=datetime.utcnow().isoformat()
+            created_at=datetime.now(timezone.utc).isoformat()
         )
         
         self._save_entity(entity_id, name, entity_type, properties or {})
@@ -178,7 +178,7 @@ class NetworkXGraph:
             to_id,
             relation_type=relation_type,
             properties=properties or {},
-            created_at=datetime.utcnow().isoformat()
+            created_at=datetime.now(timezone.utc).isoformat()
         )
         
         self._save_relation(relation_id, from_id, to_id, relation_type, properties or {})
@@ -344,22 +344,45 @@ class NetworkXGraph:
             导出的数据字符串
         """
         import tempfile
+        import os
+        
+        # 对于 GraphML 和 GEXF，需要序列化 dict 属性为字符串
+        if format in ("graphml", "gexf"):
+            # 创建临时图，将 dict 属性序列化为 JSON 字符串
+            temp_graph = nx.DiGraph()
+            
+            # 复制节点，序列化 properties
+            for node_id, node_data in self.graph.nodes(data=True):
+                new_data = node_data.copy()
+                if "properties" in new_data and isinstance(new_data["properties"], dict):
+                    new_data["properties"] = json.dumps(new_data["properties"], ensure_ascii=False)
+                temp_graph.add_node(node_id, **new_data)
+            
+            # 复制边，序列化 properties
+            for from_id, to_id, edge_data in self.graph.edges(data=True):
+                new_data = edge_data.copy()
+                if "properties" in new_data and isinstance(new_data["properties"], dict):
+                    new_data["properties"] = json.dumps(new_data["properties"], ensure_ascii=False)
+                temp_graph.add_edge(from_id, to_id, **new_data)
+            
+            export_graph = temp_graph
+        else:
+            export_graph = self.graph
         
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix=f".{format}") as f:
             temp_path = f.name
             
             if format == "graphml":
-                nx.write_graphml(self.graph, temp_path)
+                nx.write_graphml(export_graph, temp_path)
             elif format == "gexf":
-                nx.write_gexf(self.graph, temp_path)
+                nx.write_gexf(export_graph, temp_path)
             elif format == "json":
-                data = nx.node_link_data(self.graph)
+                data = nx.node_link_data(export_graph)
                 json.dump(data, f, indent=2, ensure_ascii=False)
             
             f.seek(0)
             content = f.read()
         
-        import os
         os.unlink(temp_path)
         
         return content

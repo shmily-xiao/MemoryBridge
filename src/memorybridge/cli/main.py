@@ -57,7 +57,7 @@ def add(
         typer.echo("   有效值：p0, p1, p2, p3")
         raise typer.Exit(1)
 
-    tag_list = tags.split(",") if tags else []
+    tag_list = [t.strip() for t in tags.replace("，", ",").split(",") if t.strip()] if tags else []
 
     import asyncio
 
@@ -188,7 +188,7 @@ def update(
         typer.echo("❌ 错误：至少需要提供一个更新字段 (--content 或 --tags)")
         raise typer.Exit(1)
 
-    tag_list = tags.split(",") if tags else None
+    tag_list = [t.strip() for t in tags.replace("，", ",").split(",") if t.strip()] if tags else None
 
     import asyncio
 
