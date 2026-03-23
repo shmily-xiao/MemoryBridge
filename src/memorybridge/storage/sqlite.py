@@ -215,30 +215,36 @@ class SQLiteStorage(MemoryService):
         limit: int = 20,
         offset: int = 0,
         memory_type: Optional[MemoryType] = None,
+        priority: Optional[MemoryPriority] = None,
     ) -> List[Memory]:
         """列出记忆"""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
 
+            # 构建动态查询
+            conditions = []
+            params = []
+            
             if memory_type:
-                cursor = conn.execute(
-                    """
-                    SELECT * FROM memories
-                    WHERE memory_type = ?
-                    ORDER BY created_at DESC
-                    LIMIT ? OFFSET ?
-                    """,
-                    (memory_type.value, limit, offset),
-                )
-            else:
-                cursor = conn.execute(
-                    """
-                    SELECT * FROM memories
-                    ORDER BY created_at DESC
-                    LIMIT ? OFFSET ?
-                    """,
-                    (limit, offset),
-                )
+                conditions.append("memory_type = ?")
+                params.append(memory_type.value)
+            
+            if priority:
+                conditions.append("priority = ?")
+                params.append(priority.value)
+            
+            where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+            params.extend([limit, offset])
+            
+            cursor = conn.execute(
+                f"""
+                SELECT * FROM memories
+                {where_clause}
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                tuple(params),
+            )
 
             rows = cursor.fetchall()
             return [self._row_to_memory(row) for row in rows]

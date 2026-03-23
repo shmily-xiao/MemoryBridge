@@ -123,6 +123,7 @@ def search(
 def list_(
     limit: int = typer.Option(20, "--limit", "-l", help="返回数量"),
     type: Optional[str] = typer.Option(None, "--type", "-t", help="记忆类型过滤"),
+    priority: Optional[str] = typer.Option(None, "--priority", "-p", help="优先级过滤：p0/p1/p2/p3"),
     backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端"),
 ):
     """列出记忆"""
@@ -134,11 +135,21 @@ def list_(
             memory_type = MemoryType(type)
         except ValueError:
             typer.echo(f"❌ 错误：无效的记忆类型 '{type}'")
+            typer.echo("   有效值：session, long_term")
+            raise typer.Exit(1)
+
+    memory_priority = None
+    if priority:
+        try:
+            memory_priority = MemoryPriority(priority)
+        except ValueError:
+            typer.echo(f"❌ 错误：无效的优先级 '{priority}'")
+            typer.echo("   有效值：p0, p1, p2, p3")
             raise typer.Exit(1)
 
     import asyncio
 
-    memories = asyncio.run(storage.list(limit=limit, memory_type=memory_type))
+    memories = asyncio.run(storage.list(limit=limit, memory_type=memory_type, priority=memory_priority))
 
     if not memories:
         typer.echo("❌ 暂无记忆")
@@ -150,6 +161,8 @@ def list_(
         typer.secho(f"[{i}] {memory.id[:8]}", bold=True)
         typer.echo(f"    内容：{memory.content[:80]}{'...' if len(memory.content) > 80 else ''}")
         typer.echo(f"    类型：{memory.memory_type.value} | 优先级：{memory.priority.value}")
+        if memory.tags:
+            typer.echo(f"    标签：{', '.join(memory.tags)}")
         typer.echo()
 
 
@@ -235,17 +248,27 @@ def delete(memory_id: str = typer.Argument(..., help="记忆 ID"), backend: str 
 
 @app.command()
 def export(
-    output: str = typer.Option("memories.json", "--output", "-o", help="输出文件路径"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="输出文件路径（默认导出到 ~/.memorybridge/exports/memories_TIMESTAMP.json）"),
     format: str = typer.Option("json", "--format", "-f", help="导出格式"),
     backend: str = typer.Option("sqlite", "--backend", "-b", help="存储后端"),
 ):
     """导出记忆到文件"""
+    from pathlib import Path
+    import datetime
+    
     storage = get_storage(backend)
 
     import asyncio
 
     data = asyncio.run(storage.export(format=format))
 
+    # 如果未指定输出路径，导出到默认目录
+    if not output:
+        export_dir = Path.home() / ".memorybridge" / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        output = str(export_dir / f"memories_{timestamp}.json")
+    
     with open(output, "w", encoding="utf-8") as f:
         f.write(data)
 

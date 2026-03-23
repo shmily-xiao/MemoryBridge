@@ -109,6 +109,7 @@ class MemoryService(ABC):
         limit: int = 20,
         offset: int = 0,
         memory_type: Optional[MemoryType] = None,
+        priority: Optional[MemoryPriority] = None,
     ) -> List[Memory]:
         """列出记忆
 
@@ -116,6 +117,7 @@ class MemoryService(ABC):
             limit: 返回数量限制 (默认 20)
             offset: 偏移量 (默认 0)
             memory_type: 记忆类型过滤 (可选)
+            priority: 优先级过滤 (可选)
 
         Returns:
             Memory 对象列表

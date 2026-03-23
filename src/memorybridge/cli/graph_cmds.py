@@ -90,7 +90,18 @@ def query(
 ):
     """查询实体关系"""
     graph = get_graph()
-    relations = graph.query_relations(entity_id, relation_type)
+    
+    try:
+        relations = graph.query_relations(entity_id, relation_type)
+    except Exception as e:
+        # 处理实体不存在的情况
+        error_msg = str(e)
+        if "not in the digraph" in error_msg or "KeyError" in type(e).__name__:
+            typer.echo(f"❌ 错误：实体不存在 '{entity_id}'")
+            typer.echo("   使用 `memorybridge graph list-entities` 查看可用实体")
+        else:
+            typer.echo(f"❌ 查询失败：{error_msg}")
+        raise typer.Exit(1)
     
     if not relations:
         typer.echo("❌ 未找到关系")

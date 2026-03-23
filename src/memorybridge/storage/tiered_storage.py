@@ -242,13 +242,14 @@ class TieredStorage(MemoryService):
         limit: int = 20,
         offset: int = 0,
         memory_type: Optional[MemoryType] = None,
+        priority: Optional[MemoryPriority] = None,
     ) -> List[Memory]:
         """列出记忆（从所有存储层）"""
         results = []
 
         # 列出热存储
         hot_results = await self.hot_storage.list(
-            limit=limit, offset=offset, memory_type=memory_type
+            limit=limit, offset=offset, memory_type=memory_type, priority=priority
         )
         results.extend(hot_results)
 
@@ -258,6 +259,7 @@ class TieredStorage(MemoryService):
                 limit=limit - len(results),
                 offset=0,
                 memory_type=memory_type,
+                priority=priority,
             )
             results.extend(warm_results)
 

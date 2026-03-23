@@ -229,11 +229,14 @@ class MongoDBStorage(MemoryService):
         limit: int = 20,
         offset: int = 0,
         memory_type: Optional[MemoryType] = None,
+        priority: Optional[MemoryPriority] = None,
     ) -> List[Memory]:
         """列出记忆"""
         query_filter = {}
         if memory_type:
             query_filter["memory_type"] = memory_type.value
+        if priority:
+            query_filter["priority"] = priority.value
 
         cursor = self.collection.find(query_filter).sort(
             "created_at", -1

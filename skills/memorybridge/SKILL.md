@@ -77,6 +77,12 @@ memory_list(limit=100)
 
 # 仅 Session 记忆
 memory_list(type="session")
+
+# 按优先级过滤（新增）
+memory_list(priority="p0")
+
+# 类型 + 优先级组合过滤
+memory_list(type="long_term", priority="p1")
 ```
 
 ## 参数说明
@@ -93,6 +99,12 @@ memory_list(type="session")
 - `query` (str, 必填): 搜索关键词
 - `limit` (int, 可选): 返回数量，默认 10
 - `type` (str, 可选): 类型过滤 `session` 或 `long_term`
+
+### memory_list
+
+- `limit` (int, 可选): 返回数量，默认 20
+- `type` (str, 可选): 类型过滤 `session` 或 `long_term`
+- `priority` (str, 可选): 优先级过滤 `p0`/`p1`/`p2`/`p3`（新增）
 
 ## 记忆类型
 
